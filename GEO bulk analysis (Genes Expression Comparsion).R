@@ -11,9 +11,7 @@ pacman::p_load(tidyverse, ggpubr, rstatix, purrr,fs)
 # 1. Data Preparation
 #---------------------------
 # Define core analysis genes
-CORE_GENES <- c("NFE2L2", "FTH1", "GPX4", "KEAP1", 
-               "NFKB1","SLC40A1", "SLC11A2")
-
+CORE_GENES <- c("Gene1", "Gene2", "Gene3", "Gene4")
 # Read and process expression matrix
 expr_matrix <- read_csv("expression_matrix.csv") %>%
   column_to_rownames("Symbol") %>%  # Set gene symbols as row names
@@ -115,8 +113,8 @@ walk(CORE_GENES, ~{
 #---------------------------
 # Define gene pairs for correlation analysis
 GENE_PAIRS <- list(
-  c("NFE2L2", "SLC40A1"),
-  c("NFE2L2", "FTH1")
+  c("Gene1", "Gene2"),
+  c("Gene2", "Gene3")
 )
 
 # Calculate correlations with FDR adjustment
