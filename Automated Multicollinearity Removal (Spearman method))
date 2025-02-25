@@ -1,0 +1,72 @@
+# Load required packages  
+library(ggcorrplot)  
+library(reshape2)  
+
+# Set working directory  
+setwd("Your own file")  
+
+# Load and clean data  
+data <- read.csv("Your own information")  
+TS_Syndrome <- na.omit(data)  
+
+# Perform Spearman correlation analysis  
+correlation_data <- TS_Syndrome[, !colnames(TS_Syndrome) %in% c("Group")]  
+spearman_cor <- cor(correlation_data, method = "spearman")  
+
+# Create data frame for asterisks  
+melted_corr <- melt(spearman_cor)  
+melted_corr$asterisk <- ifelse(abs(melted_corr$value) > 0.8 &   
+                              melted_corr$Var1 != melted_corr$Var2, "*", "")  
+
+# Create correlation heatmap  
+pdf("spearman_correlation_heatmap.pdf", width = 15, height = 15)  
+
+# Plot heatmap  
+ggcorrplot(  
+  spearman_cor,  
+  hc.order = TRUE,  
+  type = "full",  
+  lab = FALSE,      # Hide correlation coefficients  
+  tl.cex = 8,       # Text label size  
+  tl.srt = 45,      # Text label rotation  
+  p.mat = cor_pmat(correlation_data),  
+  sig.level = 0.05,  
+  insig = "blank",  
+  colors = c("#4575B4", "white", "#D73027"),  
+  ggtheme = ggplot2::theme_minimal() +  
+    theme(  
+      panel.grid = element_blank(),  
+      axis.line = element_blank(),  
+      panel.border = element_blank(),  
+      panel.background = element_blank(),  
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)  
+    )  
+) +  
+  # Add asterisks for high correlations  
+  geom_text(  
+    data = melted_corr,  
+    aes(x = Var1, y = Var2, label = asterisk),  
+    size = 5,  
+    color = "black"  
+  ) +  
+  # Add title  
+  ggtitle("Spearman Correlation Heatmap of Clinical Parameters\n* indicates |correlation| > 0.8") +  
+  theme(plot.title = element_text(size = 16))  
+
+dev.off()  
+
+# Extract and save highly correlated pairs  
+high_cor_matrix <- spearman_cor  
+high_cor_matrix[lower.tri(high_cor_matrix, diag = TRUE)] <- NA  
+high_cor_pairs <- which(abs(high_cor_matrix) > 0.8 & !is.na(high_cor_matrix), arr.ind = TRUE)  
+
+# Create and sort correlation list  
+high_cor_list <- data.frame(  
+  Variable1 = rownames(spearman_cor)[high_cor_pairs[, 1]],  
+  Variable2 = colnames(spearman_cor)[high_cor_pairs[, 2]],  
+  Correlation = round(spearman_cor[high_cor_pairs], 3)  
+)  
+high_cor_list <- high_cor_list[order(abs(high_cor_list$Correlation), decreasing = TRUE), ]  
+
+# Save results  
+write.csv(high_cor_list, "high_correlations_spearman_0.8.csv", row.names = FALSE)  
