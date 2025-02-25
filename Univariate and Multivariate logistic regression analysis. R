@@ -1,0 +1,91 @@
+# Load necessary libraries
+library(rms)
+library(survival)
+library(dplyr)
+library(caret)
+library(ggplot2)
+library(officer)
+library(flextable)
+library(regplot)
+library(pROC)
+library(rmda)
+
+# Set working directory
+setwd("your path here")
+
+# Load data
+mydata <- read.csv("your csv here", header = TRUE)
+
+# Get variable names
+predictors <- colnames(mydata)[!colnames(mydata) %in% "Group"]
+
+# Univariate logistic regression analysis
+univariate_results <- list()
+significant_vars <- c()
+for (predictor in predictors) {
+  formula <- as.formula(paste("Group ~", predictor))
+  model <- glm(formula, data = mydata, family = binomial)
+  summary_model <- summary(model)
+  univariate_results[[predictor]] <- summary_model
+  if (summary_model$coefficients[2, 4] < 0.05) {  # Check if p-value is less than 0.05
+    significant_vars <- c(significant_vars, predictor)
+  }
+}
+
+# Display univariate regression results
+for (predictor in predictors) {
+  cat("\nUnivariate regression results:", predictor, "\n")
+  print(univariate_results[[predictor]])
+}
+
+# Create Word document
+doc <- read_docx()
+
+# Add univariate analysis results to Word document
+doc <- doc %>%
+  body_add_par("Univariate Regression Analysis Results", style = "heading 1")
+
+for (predictor in predictors) {
+  summary_model <- univariate_results[[predictor]]
+  OR <- exp(coef(summary_model)[2, 1])
+  p_value <- coef(summary_model)[2, 4]
+  result_df <- data.frame(
+    Variable = predictor,
+    OR = OR,
+    P.value = p_value
+  )
+  ft <- flextable(result_df)
+  doc <- doc %>%
+    body_add_par(paste("Variable:", predictor), style = "heading 2") %>%
+    body_add_flextable(ft)
+}
+
+# Check significant variables
+cat("Significant variables:", significant_vars, "\n")
+
+# Multivariate logistic regression analysis
+if (length(significant_vars) > 0) {
+  formula_str <- paste("Group ~", paste(significant_vars, collapse = " + "))
+  cat("Multivariate regression formula:", formula_str, "\n")
+  fml <- as.formula(formula_str)
+  print(fml)
+  
+  multifit <- glm(fml, data = mydata, family = binomial)
+  
+  # Get multivariate regression results
+  coefficients <- summary(multifit)$coefficients
+  
+  # Create multivariate regression summary table
+  multi_factor_df <- data.frame(
+    Variable = rownames(coefficients),
+    OR = exp(coefficients[, 1]),
+    P.value = coefficients[, 4]
+  )
+  ft_multi <- flextable(multi_factor_df)
+  doc <- doc %>%
+    body_add_par("Multivariate Regression Analysis Results", style = "heading 1") %>%
+    body_add_flextable(ft_multi)
+  
+  # Save Word document
+  print(doc, target = "Regression_Results.docx")
+  
